@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Checkout - ShopHub</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    .stock-warning { color: #dc3545; font-weight: bold; }
+    .success-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 9999; }
+    .modal-content { background: white; padding: 40px; border-radius: 15px; text-align: center; max-width: 500px; }
+  </style>
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <div class="container mt-5 mb-5">
+    <h1 class="mb-4">Checkout</h1>
+
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="card shadow mb-4">
+          <div class="card-header bg-primary text-white">
+            <h4>Shipping Address</h4>
+          </div>
+          <div class="card-body">
+            <form id="checkoutForm">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label>Full Name</label>
+                  <input type="text" class="form-control" id="fullName" required>
+                </div>
+                <div class="col-md-6">
+                  <label>Phone</label>
+                  <input type="tel" class="form-control" id="phone" required>
+                </div>
+                <div class="col-12">
+                  <label>Street Address</label>
+                  <input type="text" class="form-control" id="address" required>
+                </div>
+                <div class="col-md-4">
+                  <label>City</label>
+                  <input type="text" class="form-control" id="city" required>
+                </div>
+                <div class="col-md-4">
+                  <label>State</label>
+                  <input type="text" class="form-control" id="state" required>
+                </div>
+                <div class="col-md-4">
+                  <label>ZIP Code</label>
+                  <input type="text" class="form-control" id="zip" required>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card shadow sticky-top" style="top: 100px;">
+          <div class="card-header bg-success text-white">
+            <h4>Order Summary</h4>
+          </div>
+          <div class="card-body" id="order-summary"></div>
+          <div class="card-footer">
+            <button class="btn btn-success btn-lg w-100" onclick="placeOrder()">
+              Place Order
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Popup -->
+  <div class="success-modal" id="successModal">
+    <div class="modal-content">
+      <h2>Order Placed Successfully!</h2>
+      <p>Thank you for shopping with ShopHub</p>
+      <button class="btn btn-primary btn-lg mt-3" onclick="goHome()">Continue Shopping</button>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNavbar();
+      renderCheckoutSummary();
+    });
+
+    function renderCheckoutSummary() {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      const products = JSON.parse(localStorage.getItem('products') || '[]');
+      const container = document.getElementById('order-summary');
+      if (cart.length === 0) {
+        container.innerHTML = '<p class="text-center py-5">Your cart is empty</p>';
+        return;
+      }
+
+      let total = 0;
+      let html = '<ul class="list-group list-group-flush">';
+      let hasStockIssue = false;
+
+      cart.forEach(item => {
+        const p = products.find(x => x.id === item.id);
+        const lineTotal = p.price * item.qty;
+        total += lineTotal;
+
+        const stockStatus = item.qty > p.stock 
+          ? `<span class="stock-warning">Only ${p.stock} left!</span>`
+          : `<small class="text-success">${p.stock} in stock</small>`;
+
+        html += `
+          <li class="list-group-item d-flex justify-content-between">
+            <div>
+              <strong>${item.qty} × ${p.name}</strong><br>
+              ${stockStatus}
+            </div>
+            <span>$${(lineTotal).toFixed(2)}</span>
+          </li>`;
+        
+        if (item.qty > p.stock) hasStockIssue = true;
+      });
+
+      html += `</ul>
+        <div class="d-flex justify-content-between mt-3 fs-5">
+          <strong>Total:</strong>
+          <strong>$${total.toFixed(2)}</strong>
+        </div>`;
+
+      if (hasStockIssue) {
+        html += `<div class="alert alert-danger mt-3">
+          Some items exceed available stock. Please reduce quantity.
+        </div>`;
+      }
+
+      container.innerHTML = html;
+
+      // Disable button if stock issue
+      document.querySelector('.btn-success').disabled = hasStockIssue;
+    }
+
+    function placeOrder() {
+      const form = document.getElementById('checkoutForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      const products = JSON.parse(localStorage.getItem('products') || '[]');
+      
+      // Final stock check
+      for (let item of cart) {
+        const p = products.find(x => x.id === item.id);
+        if (item.qty > p.stock) {
+          alert(`Not enough stock for "${p.name}"`);
+          return;
+        }
+      }
+
+      // Reduce stock
+      products.forEach(p => {
+        const cartItem = cart.find(i => i.id === p.id);
+        if (cartItem) p.stock -= cartItem.qty;
+      });
+      localStorage.setItem('products', JSON.stringify(products));
+
+      // Save order
+      const order = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString(),
+        items: cart,
+        total: cart.reduce((sum, i) => {
+          const p = products.find(x => x.id === i.id);
+          return sum + p.price * i.qty;
+        }, 0),
+        shipping: {
+          name: document.getElementById('fullName').value,
+          phone: document.getElementById('phone').value,
+          address: document.getElementById('address').value + ", " +
+                   document.getElementById('city').value + ", " +
+                   document.getElementById('state').value + " " +
+                   document.getElementById('zip').value
+        }
+      };
+
+      let orders = JSON.parse(localStorage.getItem('orders') || '[]');
+      orders.push(order);
+      localStorage.setItem('orders', JSON.stringify(orders));
+
+      // Clear cart
+      localStorage.setItem('cart', '[]');
+      updateCartCount();
+
+      // Show success
+      document.getElementById('successModal').style.display = 'flex';
+    }
+
+    function goHome() {
+      location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

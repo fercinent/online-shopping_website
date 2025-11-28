@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Product - ShopHub</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="card shadow-lg border-0">
+          <div class="card-header bg-primary text-white text-center">
+            <h2 class="mb-0" id="form-title">Add New Product</h2>
+          </div>
+          <div class="card-body p-5">
+            <form onsubmit="saveProduct(event)">
+              <input type="hidden" id="product-id">
+
+              <div class="row g-4">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Product Name</label>
+                  <input type="text" id="name" class="form-control form-control-lg" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Price ($)</label>
+                  <input type="number" step="0.01" min="0" id="price" class="form-control form-control-lg" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Stock Quantity</label>
+                  <input type="number" min="0" id="stock" class="form-control form-control-lg" value="10" required>
+                </div>
+              </div>
+
+              <div class="mt-4">
+                <label class="form-label fw-bold">Description</label>
+                <textarea id="description" class="form-control" rows="4"></textarea>
+              </div>
+
+              <div class="mt-4">
+                <label class="form-label fw-bold">Image URL</label>
+                <input type="url" id="image" class="form-control form-control-lg"
+                  value="https://placehold.co/600x400/333333/white?text=New+Product&fontsize=28" required>
+                <div class="form-text">
+                  Tip: Use <a href="https://placehold.co" target="_blank">placehold.co</a> for instant placeholders
+                </div>
+              </div>
+
+              <div class="mt-5 text-center">
+                <button type="submit" class="btn btn-primary btn-lg px-5">Save Product</button>
+                <a href="products.html" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    // Enhanced saveProduct & loadProductForEdit to include stock
+    function saveProduct(e) {
+      e.preventDefault();
+      const id = document.getElementById('product-id').value;
+      const product = {
+        id: id ? +id : Date.now(),
+        name: document.getElementById('name').value.trim(),
+        price: +document.getElementById('price').value,
+        description: document.getElementById('description').value.trim(),
+        image: document.getElementById('image').value,
+        stock: +document.getElementById('stock').value || 0
+      };
+
+      let products = JSON.parse(localStorage.getItem('products') || '[]');
+      if (id) {
+        products = products.map(p => p.id == id ? product : p);
+      } else {
+        products.push(product);
+      }
+      localStorage.setItem('products', JSON.stringify(products));
+      alert('Product saved successfully!');
+      location.href = 'products.html';
+    }
+
+    function loadProductForEdit(id) {
+      const products = JSON.parse(localStorage.getItem('products'));
+      const p = products.find(x => x.id == id);
+      if (p) {
+        document.getElementById('form-title').textContent = 'Edit Product';
+        document.getElementById('product-id').value = p.id;
+        document.getElementById('name').value = p.name;
+        document.getElementById('price').value = p.price;
+        document.getElementById('description').value = p.description;
+        document.getElementById('image').value = p.image;
+        document.getElementById('stock').value = p.stock;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNavbar();
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      if (id) loadProductForEdit(id);
+    });
+  </script>
+</body>
+</html>
